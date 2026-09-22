@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>초고속 스피드 퀴즈 (Speed Quiz)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Sans KR & Black Han Sans -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow: hidden;
+            height: 100vh;
+            height: 100svh;
+            width: 100vw;
+            margin: 0;
+            padding: 0;
+        }
+        .font-title {
+            font-family: 'Black Han Sans', sans-serif;
+        }
+        /* Custom scrollbar for game grid and lists */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 4px;
+        }
+        
+        /* Landscape Warning Overlay styling */
+        @media (orientation: portrait) {
+            #portrait-warning {
+                display: flex !important;
+            }
+        }
+
+        /* Pulse animation for timer warning */
+        @keyframes pulse-red {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.2); }
+            50% { background-color: rgba(239, 68, 68, 0.6); }
+        }
+        .timer-warning {
+            animation: pulse-red 1s infinite;
+        }
+
+        /* Word pop animation */
+        .word-enter {
+            animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn {
+            0% { transform: scale(0.7); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="flex flex-col h-full w-full relative">
+
+    <!-- Portrait Orientation Alert -->
+    <div id="portrait-warning" class="hidden fixed inset-0 z-50 bg-slate-950/95 flex-col items-center justify-center p-6 text-center text-white backdrop-blur-md">
+        <i class="fa-solid fa-mobile-screen-button text-6xl text-amber-400 mb-4 animate-bounce"></i>
+        <h2 class="text-2xl font-bold mb-2">가로 모드로 전환해 주세요!</h2>
+        <p class="text-slate-300 text-sm max-w-md">
+            스피드퀴즈는 모바일 가로 모드(Landscape)에 최적화되어 있습니다.<br>스마트폰의 '자동 회전'을 켜고 화면을 옆으로 돌아주세요.
+        </p>
+    </div>
+
+    <!-- 1. HOME SCREEN -->
+    <div id="screen-home" class="flex-1 flex flex-col p-4 md:p-6 justify-between h-full w-full">
+        <!-- Top Header -->
+        <header class="flex justify-between items-center bg-slate-800/80 p-3 rounded-2xl border border-slate-700 shadow-lg">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-amber-400 to-orange-500 text-slate-900 p-2 rounded-xl font-black text-xl shadow-md">
+                    <i class="fa-solid fa-bolt"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-title tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-rose-400">
+                        스피드 퀴즈 킹
+                    </h1>
+                    <p class="text-xs text-slate-400">가로모드 전용 워크숍 & 파티 게임</p>
+                </div>
+            </div>
+
+            <!-- Settings / Timer Control -->
+            <div class="flex items-center gap-4 bg-slate-900/90 px-4 py-2 rounded-xl border border-slate-700">
+                <div class="flex items-center gap-2">
+                    <i class="fa-regular fa-clock text-amber-400"></i>
+                    <span class="text-xs font-semibold text-slate-300">게임 시간:</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button onclick="changeTime(-30)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-400 font-bold border border-slate-600 flex items-center justify-center">-</button>
+                    <span id="time-setting-label" class="text-base font-bold text-amber-300 w-16 text-center">2분 00초</span>
+                    <button onclick="changeTime(30)" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 text-amber-400 font-bold border border-slate-600 flex items-center justify-center">+</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Set Selector Area -->
+        <main class="flex-1 my-3 flex flex-col min-h-0 bg-slate-900/60 rounded-2xl border border-slate-800 p-3">
+            <div class="flex justify-between items-center mb-2 px-1">
+                <div class="flex items-center gap-2">
+                    <span class="text-sm font-bold text-slate-300">게임 세트 선택 (1~50번)</span>
+                    <span id="completed-count-tag" class="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30">완료: 0 / 50</span>
+                </div>
+                <button onclick="confirmResetAll()" class="text-xs bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 px-3 py-1 rounded-lg transition-all flex items-center gap-1 active:scale-95">
+                    <i class="fa-solid fa-rotate-left"></i> 기록 초기화
+                </button>
+            </div>
+
+            <!-- Set Buttons Grid (Scrollable) -->
+            <div id="set-grid" class="flex-1 grid grid-cols-5 sm:grid-cols-10 gap-2 overflow-y-auto pr-1">
+                <!-- Javascript will populate Set buttons dynamically -->
+            </div>
+        </main>
+
+        <!-- Start Game Footer -->
+        <footer class="flex items-center justify-between bg-slate-800/80 p-3 rounded-2xl border border-slate-700">
+            <div class="text-xs text-slate-400">
+                선택된 세트: <span id="selected-set-label" class="text-amber-400 font-bold text-sm">제 1 세트</span> (30 단어)
+            </div>
+            <button onclick="startCountdown()" class="px-8 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-lg tracking-wider shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center gap-2">
+                <i class="fa-solid fa-play"></i> 게임 시작!
+            </button>
+        </footer>
+    </div>
+
+    <!-- 2. COUNTDOWN SCREEN -->
+    <div id="screen-countdown" class="hidden fixed inset-0 z-40 bg-slate-950 flex flex-col items-center justify-center">
+        <div class="text-slate-400 text-xl font-bold mb-4 tracking-widest uppercase">Get Ready</div>
+        <div id="countdown-number" class="font-title text-9xl text-amber-400 animate-bounce drop-shadow-[0_0_35px_rgba(251,191,36,0.6)]">
+            3
+        </div>
+        <div id="countdown-set-title" class="mt-8 text-slate-300 font-medium text-lg bg-slate-900/80 px-6 py-2 rounded-full border border-slate-800">
+            제 1 세트 시작
+        </div>
+    </div>
+
+    <!-- 3. GAMEPLAY SCREEN -->
+    <div id="screen-game" class="hidden flex-1 flex-col h-full w-full justify-between p-3 md:p-4 bg-slate-950 relative overflow-hidden">
+        
+        <!-- Top Status Bar -->
+        <div class="flex items-center justify-between bg-slate-900/90 px-5 py-2.5 rounded-2xl border border-slate-800 shadow-md">
+            <!-- Left Info -->
+            <div class="flex items-center gap-3">
+                <span id="game-current-set" class="bg-amber-500/20 text-amber-400 text-xs font-bold px-3 py-1 rounded-lg border border-amber-500/30">
+                    SET #1
+                </span>
+                <div class="text-xs text-slate-300">
+                    진행: <span id="game-progress-text" class="text-white font-bold text-sm">1 / 30</span>
+                </div>
+            </div>
+
+            <!-- Timer Display -->
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-stopwatch text-amber-400 text-lg"></i>
+                <span id="game-timer" class="font-mono text-2xl font-black text-amber-300 tracking-wider">02:00</span>
+            </div>
+
+            <!-- Score counter live -->
+            <div class="flex items-center gap-2 bg-slate-800 px-3 py-1 rounded-lg border border-slate-700">
+                <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                <span id="game-score-live" class="text-emerald-400 font-bold text-sm">0 개 정답</span>
+            </div>
+        </div>
+
+        <!-- Timer Bar Dynamic -->
+        <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden my-2 border border-slate-800">
+            <div id="game-timer-bar" class="bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-500 h-full w-full transition-all duration-1000 ease-linear"></div>
+        </div>
+
+        <!-- Center Main Word Box (Full size scaled for high visibility) -->
+        <div class="flex-1 flex items-center justify-center bg-gradient-to-b from-slate-900/90 to-slate-900/50 my-1 rounded-3xl border-2 border-slate-800 shadow-2xl relative overflow-hidden p-4">
+            <!-- Background glow -->
+            <div class="absolute inset-0 bg-blue-500/5 blur-3xl rounded-full pointer-events-none"></div>
+            
+            <div id="word-display" class="word-enter font-title text-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl text-white tracking-wider text-shadow-lg px-2 break-keep">
+                단어표시
+            </div>
+        </div>
+
+        <!-- Bottom Controls Bar (Pass & Correct Buttons) -->
+        <div class="grid grid-cols-2 gap-4 h-24 sm:h-28 mt-2">
+            <!-- PASS BUTTON -->
+            <button onclick="handlePass()" class="group relative flex items-center justify-center bg-gradient-to-br from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 active:scale-95 rounded-2xl shadow-lg border-2 border-rose-400/30 transition-all">
+                <div class="flex items-center gap-3 text-white font-black text-2xl sm:text-3xl">
+                    <i class="fa-solid fa-xmark text-3xl sm:text-4xl text-rose-200"></i>
+                    <span>패 스</span>
+                </div>
+            </button>
+
+            <!-- CORRECT BUTTON -->
+            <button onclick="handleCorrect()" class="group relative flex items-center justify-center bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-95 rounded-2xl shadow-lg border-2 border-emerald-400/30 transition-all">
+                <div class="flex items-center gap-3 text-slate-950 font-black text-2xl sm:text-3xl">
+                    <i class="fa-solid fa-check text-3xl sm:text-4xl text-slate-950"></i>
+                    <span>정 답 !</span>
+                </div>
+            </button>
+        </div>
+    </div>
+
+    <!-- 4. RESULT SCREEN -->
+    <div id="screen-result" class="hidden flex-1 flex-col h-full w-full justify-between p-4 bg-slate-950">
+        <!-- Result Header -->
+        <header class="text-center bg-slate-900/90 p-3 rounded-2xl border border-slate-800 shadow-md">
+            <div class="inline-block bg-rose-500/20 text-rose-400 px-4 py-1 rounded-full text-xs font-bold border border-rose-500/30 mb-1">
+                TIME UP!
+            </div>
+            <h1 class="font-title text-4xl sm:text-5xl text-amber-400 tracking-wide drop-shadow">
+                게임 종료! (끝)
+            </h1>
+        </header>
+
+        <!-- Main Score Cards -->
+        <main class="flex-1 my-3 grid grid-cols-3 gap-4 min-h-0">
+            <!-- Left Score Overview Box -->
+            <div class="col-span-1 bg-slate-900/80 rounded-2xl border border-slate-800 p-4 flex flex-col justify-center items-center text-center">
+                <div class="text-slate-400 text-xs font-semibold mb-2">최종 성적</div>
+                <div id="result-score-number" class="font-title text-6xl sm:text-7xl text-emerald-400 mb-1">
+                    18<span class="text-3xl text-slate-400">/30</span>
+                </div>
+                <div id="result-score-percent" class="text-amber-300 font-bold text-sm bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                    성공률 60%
+                </div>
+                <div id="result-time-used" class="mt-4 text-xs text-slate-400">
+                    소요시간: 02:00
+                </div>
+            </div>
+
+            <!-- Right Detail List Box (Scrollable) -->
+            <div class="col-span-2 bg-slate-900/80 rounded-2xl border border-slate-800 p-3 flex flex-col min-h-0">
+                <div class="text-xs font-bold text-slate-300 mb-2 px-1 flex justify-between items-center">
+                    <span>단어별 결과 리포트</span>
+                    <span id="result-breakdown" class="text-slate-400 font-normal">정답 18개 | 패스 12개</span>
+                </div>
+                <div id="result-word-list" class="flex-1 overflow-y-auto grid grid-cols-2 gap-2 pr-1">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Home Button -->
+        <footer class="flex justify-center">
+            <button onclick="showHomeScreen()" class="w-full max-w-md py-3.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-black text-lg tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2">
+                <i class="fa-solid fa-house"></i> 홈으로 가기 (다음 팀 선택)
+            </button>
+        </footer>
+    </div>
+
+    <script>
+        /* ====================================================================
+           WORD DATABASE: 50 Sets x 30 Words (Total 1,500 distinct words)
+           Comprising Everyday terms, Pop culture, Foods, Animals, Trends, etc.
+           ==================================================================== */
+        const WORD_DATABASE = [
+            // Set 1
+            ["탕후루", "마라탕", "손흥민", "자이언트바오", "침착맨", "스타벅스", "인스타그램", "플렉스", "오징어게임", "BTS", "아이폰", "뉴진스", "에어팟", "피카츄", "스위스", "삼겹살", "카카오톡", "넷플릭스", "테슬라", "치킨", "마스크", "쿠팡", "제주도", "스마트폰", "포켓몬빵", "크림빵", "인생네컷", "아메리카노", "에버랜드", "올리브영"],
+            // Set 2
+            ["두바이초콜릿", "안성재", "백종원", "흑백요리사", "비비지", "에스파", "카리나", "랜덤게임", "스트릿댄스", "제로콜라", "로제떡볶이", "MBTI", "버츄얼아이돌", "캐치티니핑", "포토이즘", "애플워치", "포장마차", "하이브", "손하트", "숏폼", "릴스", "틱톡", "유튜브", "당근마켓", "배달의민족", "번개장터", "요기요", "팝업스토어", "성수동", "더현대"],
+            // Set 3
+            ["초사이어인", "파이브가이즈", "런던베이글", "선재업고튀어", "변우석", "김지원", "눈물의여왕", "샤샤샤", "슬램덩크", "원피스", "귀멸의칼칼", "스파이패밀리", "하이큐", "포켓몬스터", "짱구는못말려", "명탐정코난", "마리오", "닌텐도", "플레이스테이션", "리그오브레전드", "페이커", "손오공", "도라에몽", "뽀로로", "아기상어", "핑구", "스폰지밥", "텔레토비", "토토로", "센과치히로"],
+            // Set 4
+            ["김치찌개", "된장찌개", "제육볶음", "돈까스", "짜장면", "짬뽕", "탕수육", "보쌈", "족발", "순대국밥", "돼지국밥", "설렁탕", "갈비탕", "육개장", "부대찌개", "감자탕", "닭갈비", "찜닭", "곱창", "막창", "대창", "양꼬치", "샤브샤브", "훠궈", "월남쌈", "초밥", "라멘", "우동", "메밀소바", "가츠동"],
+            // Set 5
+            ["파리올림픽", "탁구 신유빈", "양궁 김우진", "안세영", "펜싱 오상욱", "체조", "수영", "태권도", "유도", "육상", "축구", "야구", "농구", "배구", "골프", "테니스", "배드민턴", "탁구", "볼링", "당구", "스케이트", "피겨스케이팅", "쇼트트랙", "컬링", "태권도", "씨름", "유도", "격투기", "마라톤", "양궁"],
+            // Set 6
+            ["에펠탑", "자유의여신상", "피사의사탑", "타지마할", "만리장성", "콜로세움", "피라미드", "빅벤", "성베드로대성당", "나이아가라폭포", "그랜드캐니언", "후지산", "백두산", "한라산", "설악산", "경복궁", "남산타워", "롯데월드타워", "해운대", "광안대교", "성산일출봉", "불국사", "석굴암", "첨성대", "창덕궁", "덕수궁", "제주용두암", "독도", "울릉도", "마라도"],
+            // Set 7
+            ["사자", "호랑이", "코끼리", "기린", "하마", "뿔소", "얼룩말", "치타", "표범", "늑대", "여우", "곰", "팬더", "코알라", "캉가루", "펭귄", "북극곰", "바다표범", "돌고래", "고래", "상어", "가오리", "문어", "오징어", "꽃게", "독수리", "매", "올빼미", "부엉이", "까마귀"],
+            // Set 8
+            ["의사", "간호사", "변호사", "판사", "검사", "경찰관", "소방관", "교사", "교수", "과학자", "프로그래머", "요리사", "제빵사", "비행기조종사", "스튜어디스", "화가", "음악가", "소설가", "시인", "건축가", "디자이너", "사진작가", "연예인", "가수", "배우", "개그맨", "운동선수", "외교관", "농부", "어부"],
+            // Set 9
+            ["컴퓨터", "마우스", "키보드", "모니터", "프린터", "노트북", "태블릿", "스피커", "헤드폰", "이어폰", "충전기", "보조배터리", "USB", "마이크", "카메라", "삼각대", "프로젝터", "텔레비전", "냉장고", "세탁기", "건조기", "에어컨", "선풍기", "청소기", "전자레인지", "에어프라이어", "인덕션", "식기세척기", "정수기", "공기청정기"],
+            // Set 10
+            ["봄", "여름", "가을", "겨울", "개나리", "진달래", "벚꽃", "장미", "해바라기", "코스모스", "단풍잎", "은행잎", "눈사람", "산타클로스", "크리스마스트리", "루돌프", "떡국", "송편", "부럼", "쥐불놀이", "연날리기", "제기차기", "윷놀이", "강강술래", "한복", "부채", "갓", "짚신", "가야금", "거문고"],
+            // Set 11
+            ["아이브", "장원영", "세븐틴", "스트레이키즈", "엔하이픈", "투모로우바이투게더", "라이즈", "제로베이스원", "NCT", "샤이니", "블랙핑크", "제니", "지수", "로제", "리사", "트와이스", "레드벨벳", "마마무", "오마이걸", "우주소녀", "ITZY", "STAYC", "NMIXX", "LE SSERAFIM", "크래비티", "TREASURE", "ATEEZ", "BOYNEXTDOOR", "TWS", "ILLIT"],
+            // Set 12
+            ["손전등", "텐트", "침낭", "버너", "코펠", "해먹", "캠핑카", "바베큐", "모닥불", "불멍", "등산화", "배낭", "지팡이", "수통", "나침반", "지도", "쌍안경", "구명조끼", "튜브", "물총", "물안경", "오리발", "서핑보드", "낚싯대", "미끼", "어망", "아이스박스", "돗자리", "그늘막", "파라솔"],
+            // Set 13
+            ["사과", "바나나", "포도", "딸기", "수박", "참외", "복숭아", "자두", "배", "감", "귤", "한라봉", "샤인머스캣", "키위", "파인애플", "망고", "아보카도", "체리", "블루베리", "석류", "무화과", "살구", "매실", "유자", "모과", "대추", "밤", "호두", "땅콩", "잣"],
+            // Set 14
+            ["버스", "지하철", "택시", "기차", "KTX", "SRT", "비행기", "헬리콥터", "배", "잠수함", "자전거", "킥보드", "오토바이", "트럭", "경찰차", "구급차", "소방차", "레미콘", "포크레인", "불도저", "트랙터", "케이블카", "모노레일", "열기구", "우주선", "인공위성", "드론", "세그웨이", "마차", "인력거"],
+            // Set 15
+            ["국어", "영어", "수학", "사회", "과학", "음악", "미술", "체육", "국사", "세계사", "물리", "화학", "생물", "지학", "철학", "심리학", "경제학", "경영학", "법학", "의학", "약학", "천문학", "지리학", "정치학", "사회학", "교육학", "신학", "건축학", "기계공학", "전자공학"],
+            // Set 16
+            ["피아노", "바이올린", "첼로", "비올라", "콘트라베이스", "플루트", "클라리넷", "오보에", "바순", "트럼펫", "트롬본", "호른", "튜바", "드럼", "심벌즈", "실로폰", "마림바", "트라이앵글", "캐스터네츠", "탬버린", "하모니카", "아코디언", "우쿨렐레", "통기타", "전기기타", "베이스기타", "해금", "태평소", "장구", "북"],
+            // Set 17
+            ["축구공", "농구공", "야구공", "배구공", "골프공", "테니스공", "탁구공", "볼링공", "럭비공", "스쿼시공", "야구방망이", "골프채", "테니스라켓", "탁구라켓", "배드민턴라켓", "펜싱칼", "양궁활", "사격총", "역기", "덤벨", "줄넘기", "매트", "평균대", "철봉", "뼘따구", "글러브", "보호대", "헬멧", "호루라기", "메달"],
+            // Set 18
+            ["스파게티", "피자", "햄버거", "샌드위치", "핫도그", "감자튀김", "치킨너겟", "타코", "브리또", "퀘사디아", "케밥", "쌀국수", "팟타이", "나시고랭", "카오팟", "톰얌쿵", "카레", "하이라이스", "오므라이스", "리조또", "스테이크", "바베큐립", "파스타", "라자냐", "감바스", "에그타르트", "크루아상", "바게트", "베이글", "프레첼"],
+            // Set 19
+            ["빙수", "아이스크림", "마카롱", "마들렌", "휘낭시에", "시폰케이크", "티라미수", "치즈케이크", "초콜릿케이크", "롤케이크", "파이", "타르트", "푸딩", "젤리", "쿠키", "브라우니", "와플", "팬케이크", "크로플", "츄러스", "도넛", "양갱", "약과", "인절미", "꿀떡", "바람떡", "찹쌀떡", "시루떡", "화전", "약식"],
+            // Set 20
+            ["태양", "수성", "금성", "지구", "화성", "목성", "토성", "천왕성", "해왕성", "달", "북극성", "오리온자리", "북두칠성", "카시오페아", "은하수", "블랙홀", "혜성", "유성", "운석", "은하계", "우주복", "우주정거장", "로켓", "인공위성", "망원경", "외계인", "UFO", "빅뱅", "초신성", "성운"],
+            // Set 21
+            ["경찰서", "소방서", "시청", "구청", "주민센터", "우체국", "은행", "법원", "검찰청", "세무서", "학교", "유치원", "도서관", "박물관", "미술관", "극장", "영화관", "공연장", "경기장", "체육관", "수영장", "병원", "약국", "보건소", "동물병원", "호텔", "리조트", "공항", "기차역", "터미널"],
+            // Set 22
+            ["해바라기", "장미", "튤립", "백합", "국화", "카네이션", "수국", "라벤더", "민들레", "강아지풀", "코스모스", "나팔꽃", "봉선화", "무궁화", "연꽃", "선인장", "스투키", "산세베리아", "몬스테라", "유칼립투스", "올리브나무", "단풍나무", "은행나무", "소나무", "대나무", "버드나무", "벚나무", "사과나무", "감나무", "귤나무"],
+            // Set 23
+            ["머리", "이마", "눈썹", "속눈썹", "눈", "코", "인중", "입술", "치아", "혀", "턱", "볼", "귀", "목", "어깨", "쇄골", "가슴", "배", "배꼽", "등", "허리", "엉덩이", "팔꿈치", "손목", "손가락", "무릎", "발목", "발가락", "발바닥", "아킬레스건"],
+            // Set 24
+            ["모자", "선글라스", "안경", "귀걸이", "목걸이", "반지", "팔찌", "시계", "넥타이", "스카프", "목도리", "장갑", "벨트", "양말", "스타킹", "운동화", "구두", "하이힐", "샌들", "슬리퍼", "장화", "등산화", "부츠", "가방", "배낭", "핸드백", "지갑", "파우치", "양산", "우산"],
+            // Set 25
+            ["빨강", "주황", "노랑", "초록", "파랑", "남색", "보라", "분홍", "하늘색", "연두", "연보라", "갈색", "고동색", "아이보리", "베이지", "흰색", "검정색", "회색", "은색", "금색", "형광색", "민트색", "올리브색", "카키색", "네이비", "버건디", "마젠타", "시안", "투명", "무지개색"],
+            // Set 26
+            ["기쁨", "슬픔", "분노", "즐거움", "사랑", "증오", "질투", "부러움", "감동", "외로움", "두려움", "공포", "불안", "걱정", "설렘", "기대", "만족", "후회", "아쉬움", "지루함", "피곤함", "답답함", "통쾌함", "시원함", "자랑스러움", "부끄러움", "수줍음", "당황", "억울함", "감사함"],
+            // Set 27
+            ["가위", "바위", "보", "줄달리기", "박터뜨리기", "공굴리기", "계투", "피구", "족구", "피구", "발야구", "티볼", "수건돌리기", "무궁화꽃이피었습니다", "얼음땡", "숨바꼭질", "비석치기", "공기놀이", "팽이치기", "제기차기", "투호", "땅따먹기", "고무줄놀이", "말뚝박기", "다방구", "사방치기", "실싸움", "종이접기", "따먹기", "동대문남대문"],
+            // Set 28
+            ["냉장고", "세탁기", "청소기", "전자레인지", "식탁", "의자", "소파", "침대", "옷장", "책상", "책장", "서랍장", "화장대", "신발장", "거울", "시계", "달력", "액자", "조명", "커튼", "블라인드", "카페트", "쿠션", "베개", "이불", "수건", "비누", "샴푸", "치약", "칫솔"],
+            // Set 29
+            ["한국", "일본", "중국", "미국", "캐나다", "멕시코", "브라질", "아르헨티나", "영국", "프랑스", "독일", "이탈리아", "스페인", "포르투갈", "스위스", "오스트리아", "네덜란드", "벨기에", "러시아", "호주", "뉴질랜드", "베트남", "태국", "필리핀", "인도네시아", "싱가포르", "인도", "이집트", "남아공", "그리스"],
+            // Set 30
+            ["서울", "부산", "인천", "대구", "대전", "광주", "울산", "세종", "수원", "고양", "용인", "창원", "성남", "청주", "부천", "화성", "남양주", "전주", "천안", "안산", "안양", "김해", "평택", "포항", "제주", "원주", "구미", "파주", "시흥", "김포"],
+            // Set 31
+            ["라면", "신라면", "진라면", "불닭볶음면", "짜파게티", "비빔면", "너구리", "안성탕면", "육개장사발면", "왕뚜껑", "삼양라면", "팔도비빔면", "틈새라면", "참깨라면", "튀김우동", "도시락", "스낵면", "진짜장", "진짬뽕", "진비빔면", "열라면", "불닭소스", "짜짜로니", "간짬뽕", "멸치칼국수", "사리곰탕", "둥지냉면", "메밀비빔면", "신라면블랙", "배홍동"],
+            // Set 32
+            ["스윗", "플러팅", "가스라이팅", "티키타카", "모먼트", "뇌절", "억까", "억빠", "폼미쳤다", "중꺾마", "갓생", "오운완", "디저트", "소확행", "TMI", "어쩔티비", "알빠노", "쿠쿠루积极", "킹받네", "뇌피셜", "킹쁘다", "주작", "갑통알", "만반잘부", "삼귀다", "점메추", "저메추", "스포일러", "월클", "클라쓰"],
+            // Set 33
+            ["넷플릭스", "유튜브", "디즈니플러스", "티빙", "웨이브", "쿠팡플레이", "왓챠", "멜론", "지니뮤직", "스포티파이", "플로", "바이브", "애플뮤직", "스태프", "엔딩요정", "직캠", "역주행", "차트인", "음원차트", "본방사수", "재방송", "실시간검색어", "조회수", "구독", "좋아요", "알림설정", "댓글", "공유", "실시간스트리밍", "해시태그"],
+            // Set 34
+            ["강아지", "고양이", "햄스터", "토끼", "고슴도치", "기니피그", "페럿", "이구아나", "카멜레온", "거북이", "금붕어", "구피", "열대어", "앵무새", "카나리아", "십자매", "구남자", "사슴벌레", "장수풍뎅이", "달팽이", "소라게", "라쿤", "미어캣", "알파카", "사막여우", "비버", "수달", "해달", "물개", "바다표범"],
+            // Set 35
+            ["해리포터", "반지의제왕", "아바타", "어벤져스", "아이언맨", "캡틴아메리카", "토르", "헐크", "스파이더맨", "닥터스트레인지", "블랙팬서", "데드풀", "울버린", "배트맨", "슈퍼맨", "원더우먼", "조커", "트랜스포머", "미션임파서블", "분노의질주", "스타워즈", "쥬라기공원", "터미네이터", "매트릭스", "인셉션", "인터스텔라", "토이스토리", "겨울왕국", "알라딘", "라이온킹"],
+            // Set 36
+            ["김밥", "떡볶이", "순대", "튀김", "어묵", "라면", "쫄면", "우동", "만두", "찐빵", "호빵", "붕어빵", "국화빵", "계란빵", "호떡", "알토란", "꼬치어묵", "소떡소떡", "알꼬치", "닭꼬치", "핫바", "떡꼬치", "쥐포", "오징어튀김", "김말이", "야채튀김", "고구마튀김", "새우튀김", "고추튀김", "순대볶음"],
+            // Set 37
+            ["아침", "점심", "저녁", "야식", "간식", "디저트", "아침식사", "점심식사", "저녁식사", "브런치", "심야식당", "회식", "외식", "혼밥", "혼술", "홈파티", "생일파티", "피크닉", "캠핑", "글램핑", "바베큐파티", "뷔페", "코스요리", "오마카세", "파인다이닝", "푸드트럭", "포장마차", "밀키트", "편의점도시락", "배달음식"],
+            // Set 38
+            ["스마트폰", "스마트워치", "무선이어폰", "블루투스스피커", "보조배터리", "태블릿PC", "전자책리더기", "VR헤드셋", "드론", "액션캠", "미러리스카메라", "DSLR", "폴라로이드", "빔프로젝터", "3D프린터", "자율주행차", "전기자동차", "수소자동차", "전동킥보드", "전동휠", "스마트냉장고", "로봇청소기", "식기세척기", "의류관리기", "공기청정기", "제습기", "가습기", "안마의자", "스마트도어락", "AI스피커"],
+            // Set 39
+            ["월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일", "주말", "평일", "휴일", "공휴일", "연차", "월차", "휴가", "방학", "개학", "입학식", "졸업식", "수능", "시험기간", "골든위크", "추석", "설날", "크리스마스", "석가탄신일", "어린이날", "어버이날", "스승의날", "한글날", "광복절"],
+            // Set 40
+            ["손수건", "휴지", "물티슈", "키친타올", "면봉", "화장솜", "손소독제", "마스크", "체온계", "반창고", "연고", "파스", "소독약", "비타민", "영양제", "두통약", "소화제", "감기약", "안약", "인공눈물", "립밤", "핸드크림", "선크림", "수분크림", "클렌징폼", "바디워시", "샴푸", "린스", "치약", "칫솔"],
+            // Set 41
+            ["축구장", "야구장", "농구장", "골프장", "테니스장", "수영장", "빙상장", "볼링장", "당구장", "탁구장", "헬스장", "요가원", "필라테스", "클라이밍장", "스케이트장", "스키장", "워터파크", "놀이공원", "동물원", "식물원", "수족관", "영화관", "미술관", "박물관", "도서관", "공원", "식물원", "캠핑장", "낚시터", "해수욕장"],
+            // Set 42
+            ["아침햇살", "포카리스웨트", "파워에이드", "게토레이", "코카콜라", "칠성사이다", "환타", "밀키스", "암바사", "맥콜", "바나나맛우유", "초코우유", "딸기우유", "커피우유", "두유", "오렌지주스", "포도주스", "사과주스", "감귤주스", "망고주스", "식혜", "수정과", "매실차", "유자차", "녹차", "홍차", "버블티", "밀크티", "에이드", "스무디"],
+            // Set 43
+            ["신라면", "너구리", "짜파게티", "불닭볶음면", "새우깡", "포카칩", "꼬북칩", "홈런볼", "초코파이", "오예스", "몽쉘", "카스타드", "빅파이", "마가렛트", "칙촉", "촉촉한초코칩", "고래밥", "맛동산", "자갈치", "양파링", "알새우칩", "바나나킥", "짱구", "조청유과", "꿀꽈배기", "콘칩", "썬칩", "도도한나쵸", "프링글스", "에이스"],
+            // Set 44
+            ["비빔밥", "불고기", "갈비찜", "잡채", "파전", "해물파전", "김치전", "감자전", "녹두전", "육전", "생선구이", "간장게장", "양념게장", "삼합", "홍어회", "산낙지", "육회", "물회", "과메기", "아구찜", "해물탕", "알탕", "조개구이", "대하구이", "굴구이", "장어구이", "훈제오리", "삼계탕", "백숙", "보신탕"],
+            // Set 45
+            ["비행기", "헬리콥터", "패러글라이딩", "열기구", "드론", "낙하산", "행글라이더", "전투기", "경비행기", "우주선", "스카이다이빙", "번지점프", "케이블카", "짚라인", "관람차", "자이로드롭", "롤러코스터", "바이킹", "회전목마", "범퍼카", "귀신의집", "워터슬라이드", "인공서핑", "바나나보트", "제트스키", "플라이보드", "스쿠버다이빙", "스노클링", "카약", "래프팅"],
+            // Set 46
+            ["가을단풍", "설경", "일출", "일몰", "노을", "무지개", "오로라", "은하수", "유성우", "해돋이", "바다풍경", "파도", "갯벌", "백사장", "주상절리", "동굴", "폭포", "계곡", "호수", "저수지", "강변", "들판", "초원", "사막", "빙하", "화산", "섬풍경", "등대", "풍차", "전망대"],
+            // Set 47
+            ["손가락하트", "볼하트", "체리하트", "볼꼬집", "윙크", "손키스", "메롱", "브이", "쌍브이", "엄지척", "하이파이브", "악수", "포옹", "어깨동무", "깍지끼기", "팔짱", "손잡기", "쓰다듬기", "토닥토닥", "박수", "환호", "배꼽인사", "목인사", "손흔들기", "손가락질", "쉿", "손가락약속", "손가락도장", "손가락싸인", "충성"],
+            // Set 48
+            ["삼겹살", "목살", "항정살", "가브리살", "갈매기살", "돼지갈비", "소갈비", "등심", "안심", "채끝살", "차돌박이", "우삼겹", "살치살", "토시살", "제비추리", "육회", "육사시미", "곱창", "막창", "대창", "염통", "양깃머리", "특양", "족발", "보쌈", "편육", "닭발", "똥집", "닭갈비", "오리고기"],
+            // Set 49
+            ["에스프레소", "아메리카노", "카페라떼", "카푸치노", "바닐라라떼", "카라멜마키아또", "카페모카", "연유라떼", "콜드브루", "아인슈페너", "플랫화이트", "아포가토", "녹차라떼", "초코라떼", "고구마라떼", "곡물라떼", "토피넛라떼", "밀크티", "자몽에이드", "레몬에이드", "청포도에이드", "청귤에이드", "딸기스무디", "망고스무디", "플레인요거트", "블루베리스무디", "복숭아아이스티", "레몬아이스티", "캐모마일", "페퍼민트"],
+            // Set 50
+            ["파리", "런던", "뉴욕", "로스앤젤레스", "라스베이거스", "도쿄", "오사카", "교토", "후쿠오카", "삿포로", "상하이", "베이징", "홍콩", "마카오", "타이베이", "방콕", "푸켓", "치앙마이", "싱가포르", "발리", "다낭", "나트랑", "하노이", "호치민", "세부", "보라카이", "괌", "사이판", "하와이", "시드니"]
+        ];
+
+        // Game Configuration & State
+        let gameTimeLimit = 120; // Default 120 seconds (2 mins)
+        let selectedSetIndex = 0; // 0 to 49
+        let currentWordList = [];
+        let currentWordIndex = 0;
+        let timerInterval = null;
+        let remainingSeconds = 120;
+        let startTime = null;
+
+        // Stats tracking
+        let correctWords = [];
+        let passedWords = [];
+
+        // Local Storage for Completed Sets Tracking
+        const STORAGE_KEY = "speed_quiz_cleared_sets";
+        function getClearedSets() {
+            try {
+                const stored = localStorage.getItem(STORAGE_KEY);
+                return stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+        function saveClearedSet(index) {
+            try {
+                const cleared = getClearedSets();
+                if (!cleared.includes(index)) {
+                    cleared.push(index);
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleared));
+                }
+            } catch (e) {}
+        }
+        function resetClearedSets() {
+            try {
+                localStorage.removeItem(STORAGE_KEY);
+            } catch (e) {}
+        }
+
+        // DOM Elements
+        const screenHome = document.getElementById('screen-home');
+        const screenCountdown = document.getElementById('screen-countdown');
+        const screenGame = document.getElementById('screen-game');
+        const screenResult = document.getElementById('screen-result');
+
+        const timeSettingLabel = document.getElementById('time-setting-label');
+        const setGrid = document.getElementById('set-grid');
+        const selectedSetLabel = document.getElementById('selected-set-label');
+        const completedCountTag = document.getElementById('completed-count-tag');
+
+        const countdownNumber = document.getElementById('countdown-number');
+        const countdownSetTitle = document.getElementById('countdown-set-title');
+
+        const wordDisplay = document.getElementById('word-display');
+        const gameTimer = document.getElementById('game-timer');
+        const gameTimerBar = document.getElementById('game-timer-bar');
+        const gameProgressText = document.getElementById('game-progress-text');
+        const gameCurrentSet = document.getElementById('game-current-set');
+        const gameScoreLive = document.getElementById('game-score-live');
+
+        const resultScoreNumber = document.getElementById('result-score-number');
+        const resultScorePercent = document.getElementById('result-score-percent');
+        const resultTimeUsed = document.getElementById('result-time-used');
+        const resultWordList = document.getElementById('result-word-list');
+        const resultBreakdown = document.getElementById('result-breakdown');
+
+        // Initialize App
+        window.addEventListener('DOMContentLoaded', () => {
+            renderSetGrid();
+            updateTimeSettingLabel();
+        });
+
+        // Time Adjustment (-30s or +30s)
+        function changeTime(delta) {
+            gameTimeLimit = Math.max(30, Math.min(600, gameTimeLimit + delta)); // min 30s, max 10 mins
+            updateTimeSettingLabel();
+        }
+
+        function updateTimeSettingLabel() {
+            const mins = Math.floor(gameTimeLimit / 60);
+            const secs = gameTimeLimit % 60;
+            if (secs === 0) {
+                timeSettingLabel.textContent = `${mins}분`;
+            } else {
+                timeSettingLabel.textContent = `${mins}분 ${secs}초`;
+            }
+        }
+
+        // Render 1 to 50 Game Set Buttons
+        function renderSetGrid() {
+            setGrid.innerHTML = '';
+            const cleared = getClearedSets();
+            completedCountTag.textContent = `완료: ${cleared.length} / 50`;
+
+            for (let i = 0; i < 50; i++) {
+                const btn = document.createElement('button');
+                const isCleared = cleared.includes(i);
+                const isSelected = i === selectedSetIndex;
+
+                let classes = "flex flex-col items-center justify-center p-2 rounded-xl text-xs font-bold border transition-all active:scale-95 shadow-sm ";
+                
+                if (isSelected) {
+                    classes += "bg-amber-400 text-slate-950 border-amber-300 ring-2 ring-amber-400/50 scale-105 z-10 font-black";
+                } else if (isCleared) {
+                    classes += "bg-emerald-950/60 text-emerald-300 border-emerald-600/50 hover:bg-emerald-900/80";
+                } else {
+                    classes += "bg-slate-800 text-slate-200 border-slate-700 hover:bg-slate-700 hover:border-slate-500";
+                }
+
+                btn.className = classes;
+                btn.onclick = () => selectSet(i);
+
+                btn.innerHTML = `
+                    <span class="text-[10px] opacity-75">SET</span>
+                    <span class="text-base font-title">${i + 1}</span>
+                    ${isCleared ? '<i class="fa-solid fa-check text-[10px] text-emerald-400 mt-0.5"></i>' : ''}
+                `;
+
+                setGrid.appendChild(btn);
+            }
+
+            selectedSetLabel.textContent = `제 ${selectedSetIndex + 1} 세트`;
+        }
+
+        function selectSet(index) {
+            selectedSetIndex = index;
+            renderSetGrid();
+        }
+
+        function confirmResetAll() {
+            if (confirm("모든 게임 세트 진행 기록을 초기화하시겠습니까?")) {
+                resetClearedSets();
+                renderSetGrid();
+            }
+        }
+
+        function startCountdown() {
+            // Hide Home, Show Countdown
+            screenHome.classList.add('hidden');
+            screenCountdown.classList.remove('hidden');
+
+            countdownSetTitle.textContent = `제 ${selectedSetIndex + 1} 세트 (30 단어) 시작`;
+            
+            let count = 3;
+            countdownNumber.textContent = count;
+
+            const countInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownNumber.textContent = count;
+                } else if (count === 0) {
+                    countdownNumber.textContent = "시작!";
+                } else {
+                    clearInterval(countInterval);
+                    screenCountdown.classList.add('hidden');
+                    startGameplay();
+                }
+            }, 900);
+        }
+
+        function startGameplay() {
+            screenGame.classList.remove('hidden');
+            screenGame.classList.add('flex');
+
+            // Reset game variables
+            currentWordList = [...WORD_DATABASE[selectedSetIndex]];
+            // Optional: Shuffle current word list if desired, or keep fixed sequence
+            currentWordIndex = 0;
+            correctWords = [];
+            passedWords = [];
+            remainingSeconds = gameTimeLimit;
+            startTime = Date.now();
+
+            gameCurrentSet.textContent = `SET #${selectedSetIndex + 1}`;
+            updateLiveScore();
+            updateTimerDisplay();
+            showCurrentWord();
+
+            // Start Timer Interval
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                remainingSeconds--;
+                updateTimerDisplay();
+
+                if (remainingSeconds <= 0) {
+                    endGame("TIME_UP");
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(remainingSeconds / 60);
+            const secs = remainingSeconds % 60;
+            gameTimer.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+            // Update Progress Bar
+            const percent = (remainingSeconds / gameTimeLimit) * 100;
+            gameTimerBar.style.width = `${percent}%`;
+
+            // Visual Alert when < 15s remaining
+            if (remainingSeconds <= 15) {
+                gameTimer.classList.add('text-rose-500', 'animate-pulse');
+                gameTimerBar.classList.remove('from-emerald-400', 'via-amber-400');
+                gameTimerBar.classList.add('from-rose-600', 'to-red-600');
+            } else {
+                gameTimer.classList.remove('text-rose-500', 'animate-pulse');
+                gameTimerBar.classList.add('from-emerald-400', 'via-amber-400');
+            }
+        }
+
+        function showCurrentWord() {
+            if (currentWordIndex >= currentWordList.length) {
+                endGame("COMPLETED");
+                return;
+            }
+
+            const word = currentWordList[currentWordIndex];
+            wordDisplay.textContent = word;
+
+            // Trigger Pop Animation
+            wordDisplay.classList.remove('word-enter');
+            void wordDisplay.offsetWidth; // Force reflow
+            wordDisplay.classList.add('word-enter');
+
+            // Adjust font size dynamically for longer words
+            if (word.length >= 8) {
+                wordDisplay.className = "word-enter font-title text-center text-4xl sm:text-5xl md:text-6xl text-white tracking-wider px-2 break-keep";
+            } else if (word.length >= 5) {
+                wordDisplay.className = "word-enter font-title text-center text-5xl sm:text-6xl md:text-7xl text-white tracking-wider px-2 break-keep";
+            } else {
+                wordDisplay.className = "word-enter font-title text-center text-6xl sm:text-7xl md:text-8xl lg:text-9xl text-white tracking-wider px-2 break-keep";
+            }
+
+            gameProgressText.textContent = `${currentWordIndex + 1} / ${currentWordList.length}`;
+        }
+
+        function handleCorrect() {
+            if (currentWordIndex < currentWordList.length) {
+                correctWords.push(currentWordList[currentWordIndex]);
+                currentWordIndex++;
+                updateLiveScore();
+                showCurrentWord();
+            }
+        }
+
+        function handlePass() {
+            if (currentWordIndex < currentWordList.length) {
+                passedWords.push(currentWordList[currentWordIndex]);
+                currentWordIndex++;
+                showCurrentWord();
+            }
+        }
+
+        function updateLiveScore() {
+            gameScoreLive.textContent = `${correctWords.length} 개 정답`;
+        }
+
+        function endGame(reason) {
+            clearInterval(timerInterval);
+
+            // Mark this set as completed
+            saveClearedSet(selectedSetIndex);
+
+            // Hide Gameplay, Show Result
+            screenGame.classList.add('hidden');
+            screenGame.classList.remove('flex');
+
+            screenResult.classList.remove('hidden');
+            screenResult.classList.add('flex');
+
+            // Calculate Metrics
+            const totalWords = currentWordList.length;
+            const score = correctWords.length;
+            const percent = Math.round((score / totalWords) * 100);
+            
+            const timeSpentSeconds = Math.min(gameTimeLimit, Math.round((Date.now() - startTime) / 1000));
+            const spentMins = Math.floor(timeSpentSeconds / 60);
+            const spentSecs = timeSpentSeconds % 60;
+
+            resultScoreNumber.innerHTML = `${score}<span class="text-3xl text-slate-400">/${totalWords}</span>`;
+            resultScorePercent.textContent = `성공률 ${percent}%`;
+            resultTimeUsed.textContent = `소요시간: ${String(spentMins).padStart(2, '0')}분 ${String(spentSecs).padStart(2, '0')}초`;
+
+            resultBreakdown.textContent = `정답 ${score}개 | 패스 ${passedWords.length}개`;
+
+            // Populate Breakdown List
+            resultWordList.innerHTML = '';
+
+            // Show all attempted words up to currentWordIndex
+            for (let i = 0; i < currentWordIndex; i++) {
+                const word = currentWordList[i];
+                const isCorrect = correctWords.includes(word);
+
+                const item = document.createElement('div');
+                item.className = `p-2 rounded-xl flex items-center justify-between text-xs font-bold border ${
+                    isCorrect 
+                        ? 'bg-emerald-950/40 text-emerald-300 border-emerald-800/50' 
+                        : 'bg-rose-950/40 text-rose-300 border-rose-800/50'
+                }`;
+
+                item.innerHTML = `
+                    <span class="truncate pr-2">${i + 1}. ${word}</span>
+                    ${isCorrect 
+                        ? '<span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px]"><i class="fa-solid fa-check"></i> 정답</span>' 
+                        : '<span class="bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded text-[10px]"><i class="fa-solid fa-xmark"></i> 패스</span>'
+                    }
+                `;
+                resultWordList.appendChild(item);
+            }
+        }
+
+        // Return Home Function
+        function showHomeScreen() {
+            screenResult.classList.add('hidden');
+            screenResult.classList.remove('flex');
+
+            screenHome.classList.remove('hidden');
+
+            // Select next set automatically if available
+            if (selectedSetIndex < 49) {
+                selectedSetIndex++;
+            }
+            renderSetGrid();
+        }
+
+        // Keyboard Shortcuts for Easy Laptop/Tablet Controller
+        window.addEventListener('keydown', (e) => {
+            if (!screenGame.classList.contains('hidden')) {
+                if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                    handleCorrect();
+                } else if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
+                    handlePass();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
